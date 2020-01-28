@@ -1,14 +1,18 @@
-import { h, render } from 'preact';
-import { setPragma, styled } from '../index';
+import { h, createContext, render } from 'preact';
+import { useContext, forwardRef } from 'preact/compat';
+import { setup, styled } from '../index';
 import { extractCss } from '../core/update';
 
 describe('integrations', () => {
     it('preact', () => {
-        setPragma(h);
+        const ThemeContext = createContext();
+        const useTheme = () => useContext(ThemeContext);
+
+        setup(h, forwardRef, useTheme);
 
         const target = document.createElement('div');
 
-        const Box = styled('div')`
+        const Span = styled('span')`
             color: red;
         `;
 
@@ -22,15 +26,38 @@ describe('integrations', () => {
         `
         );
 
+        const BoxWithThemeColor = styled('div')`
+            color: ${props => props.theme.color};
+        `;
+
+        const BoxWithThemeColorFn = styled('div')(
+            props => `
+            color: ${props.theme.color};
+        `
+        );
+
+        const refSpy = jest.fn();
+
         render(
-            <div>
-                <Box />
-                <BoxWithColor color={'red'} />
-                <BoxWithColorFn color={'red'} />
-            </div>,
+            <ThemeContext.Provider value={{ color: 'red' }}>
+                <div>
+                    <Span ref={refSpy} />
+                    <BoxWithColor color={'red'} />
+                    <BoxWithColorFn color={'red'} />
+                    <BoxWithThemeColor />
+                    <BoxWithThemeColorFn />
+                    <BoxWithThemeColor theme={{ color: 'red' }} />
+                    <BoxWithThemeColorFn theme={{ color: 'red' }} />
+                </div>
+            </ThemeContext.Provider>,
             target
         );
 
-        expect(extractCss()).toEqual(' .go3707426746{color:red;}');
+        expect(extractCss()).toMatchInlineSnapshot(`"' .go3707426746{color:red;}'`);
+        expect(refSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tagName: 'SPAN'
+            })
+        );
     });
 });
